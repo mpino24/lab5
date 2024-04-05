@@ -1,22 +1,37 @@
 /* eslint-disable react/prop-types */
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useContext, useState } from 'react'
 import { StyleSheet, View, FlatList, ImageBackground, Image } from 'react-native'
 import { getDetail } from '../../api/RestaurantEndpoints'
 import ImageCard from '../../components/ImageCard'
 import TextRegular from '../../components/TextRegular'
 import TextSemiBold from '../../components/TextSemibold'
 import * as GlobalStyles from '../../styles/GlobalStyles'
+import { showMessage } from 'react-native-flash-message'
+import { AuthorizationContext } from '../../context/AuthorizationContext'
 
 export default function RestaurantDetailScreen ({ route }) {
   const [restaurant, setRestaurant] = useState({})
-
+  const { loggedInUser } = useContext(AuthorizationContext)
   useEffect(() => {
-    console.log('Loading restaurant details, please wait 1 second')
-    setTimeout(() => {
-      setRestaurant(getDetail(route.params.id))
-      console.log('Restaurant details loaded')
-    }, 1000)
-  }, [])
+    async function fetchRestaurant () { // Addresses problem 1
+      try {
+        const fetchedRestaurant = await getDetail(route.params.id)
+        setRestaurant(fetchedRestaurant)
+      } catch (error) { // Addresses problem 3
+        showMessage({
+          message: `There was an error while retrieving this restaurant. ${error} `,
+          type: 'error',
+          style: GlobalStyles.flashStyle,
+          titleStyle: GlobalStyles.flashTextStyle
+        })
+      }
+    }
+    if (loggedInUser) { // Addresses problem 2
+      fetchRestaurant()
+    } else {
+      setRestaurant(null)
+    }
+  }, [loggedInUser]) // Addresses problem 2
 
   const renderHeader = () => {
     return (
@@ -33,7 +48,7 @@ export default function RestaurantDetailScreen ({ route }) {
   const renderProduct = ({ item }) => {
     return (
       <ImageCard
-        imageUri={item.image ? { uri: process.env.API_BASE_URL + '/' + item.image } : defaultProductImage}
+        imageUri={item.image ? { uri: process.env.API_BASE_URL + '/' + item.image } : undefined}
         title={item.name}
       >
         <TextRegular numberOfLines={2}>{item.description}</TextRegular>
@@ -95,5 +110,5 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     marginRight: 5,
     color: GlobalStyles.brandSecondary
-  },
+  }
 })
